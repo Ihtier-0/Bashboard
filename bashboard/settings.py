@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-
 CONFIG_DIR = Path.home() / ".config" / "bashboard"
 SETTINGS_FILE = CONFIG_DIR / "settings.json"
 

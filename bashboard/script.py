@@ -1,4 +1,5 @@
 import os
+import platform
 import shlex
 from typing import Optional
 
@@ -7,6 +8,18 @@ from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 LOG_LIMIT = 5000
 
 CLEAR_TOKEN = "\x00CLEAR\x00"
+
+# /proc/<pid>/syscall reports the syscall number as decimal (kernel format
+# "%ld 0x%lx ..."). The read() syscall number is arch-specific.
+_READ_SYSCALL_NR = {
+    "x86_64": "0",
+    "i686": "3",
+    "i386": "3",
+    "aarch64": "63",
+    "armv7l": "3",
+    "armv6l": "3",
+    "riscv64": "63",
+}.get(platform.machine(), "0")
 
 
 class Script(QObject):
@@ -156,7 +169,7 @@ def _is_waiting_for_stdin(root_pid: int) -> bool:
 
         if line and not line.startswith("running"):
             parts = line.split()
-            if len(parts) >= 2 and parts[1] == "0x0":
+            if len(parts) >= 2 and parts[0] == _READ_SYSCALL_NR and parts[1] == "0x0":
                 proc_stdin = _readlink(f"/proc/{pid}/fd/0")
                 if proc_stdin is not None and proc_stdin == root_stdin:
                     return True

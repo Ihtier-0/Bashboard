@@ -32,7 +32,7 @@ Desktop GUI to run, monitor, and interactively input data into bash scripts on L
 
 ## Architecture decisions
 
-- "Waiting for input" detection: walks the `/proc` tree from the QProcess root PID, checks `/proc/<pid>/syscall` for any descendant blocked on a syscall with `arg0 == 0x0` (fd 0), and confirms the fd 0 inode matches the root's. The inode check avoids false positives from internal pipelines like `cat | grep` where the inner process's fd 0 is a different pipe.
+- "Waiting for input" detection: walks the `/proc` tree from the QProcess root PID, checks `/proc/<pid>/syscall` for any descendant blocked specifically in the `read()` syscall with `arg0 == 0x0` (fd 0), and confirms the fd 0 inode matches the root's. Both the syscall-number check (arch-specific, see `_READ_SYSCALL_NR` in `script.py`) and the inode check are needed: arg0 alone is ambiguous because other syscalls also pass 0 in their first argument (e.g. `clock_nanosleep` with `CLOCK_REALTIME=0` from any `sleep` descendant), and the inode check avoids false positives from internal pipelines like `cat | grep` where the inner process's fd 0 is a different pipe.
 - Stop sequence: `SIGTERM`, wait 3 seconds, then `SIGKILL`.
 - Parallel runs of the same script are disabled. While running: Run is greyed, Stop is enabled, Edit is locked.
 - Log buffer is in-memory only — capped at 5000 lines per script, view widget capped at 10000 blocks. No on-disk log persistence yet.
