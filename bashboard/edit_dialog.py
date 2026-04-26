@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .bash_highlighter import BashHighlighter
 from .i18n import tr
 
 
@@ -74,6 +75,7 @@ class EditDialog(QDialog):
         mono.setStyleHint(QFont.TypeWriter)
         self.content_edit.setFont(mono)
         self.content_edit.setTabChangesFocus(False)
+        self._highlighter = BashHighlighter(self.content_edit.document())
         form.addRow(self.content_edit)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
