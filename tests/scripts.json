@@ -1,0 +1,17 @@
+[
+  {
+    "name": "1. Run and exit",
+    "path": "scripts/run_and_exit.sh",
+    "args": ""
+  },
+  {
+    "name": "2. Interactive (stdin)",
+    "path": "scripts/interactive.sh",
+    "args": ""
+  },
+  {
+    "name": "3. Background loop",
+    "path": "scripts/background.sh",
+    "args": ""
+  }
+]

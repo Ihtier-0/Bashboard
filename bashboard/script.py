@@ -4,7 +4,6 @@ from typing import Optional
 
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 
-
 LOG_LIMIT = 5000
 
 CLEAR_TOKEN = "\x00CLEAR\x00"
@@ -19,6 +18,7 @@ class Script(QObject):
         self.name = name
         self.path = path
         self.args = args
+        self.base_dir: Optional[str] = None
         self.process: Optional[QProcess] = None
         self.log_lines: list[str] = []
         self.waiting_input: bool = False
@@ -31,6 +31,12 @@ class Script(QObject):
     def is_running(self) -> bool:
         return self.process is not None and self.process.state() != QProcess.NotRunning
 
+    @property
+    def resolved_path(self) -> str:
+        if os.path.isabs(self.path) or not self.base_dir:
+            return self.path
+        return os.path.join(self.base_dir, self.path)
+
     def start(self) -> None:
         if self.is_running:
             return
@@ -39,7 +45,7 @@ class Script(QObject):
 
         proc = QProcess(self)
         proc.setProgram("/bin/bash")
-        proc.setArguments([self.path, *shlex.split(self.args)])
+        proc.setArguments([self.resolved_path, *shlex.split(self.args)])
         proc.setProcessChannelMode(QProcess.MergedChannels)
         proc.readyReadStandardOutput.connect(self._on_output)
         proc.finished.connect(self._on_finished)
@@ -60,7 +66,7 @@ class Script(QObject):
             self.process.waitForFinished(1000)
 
     def command(self) -> str:
-        parts = ["bash", shlex.quote(self.path)]
+        parts = ["bash", shlex.quote(self.resolved_path)]
         if self.args:
             parts.append(self.args)
         return " ".join(parts)

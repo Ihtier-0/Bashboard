@@ -27,12 +27,12 @@ THEME_LABELS = {"system": "System", "light": "Light", "dark": "Dark"}
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, config_path=None):
         super().__init__()
         self.setWindowTitle("Bashboard")
         self.resize(1100, 650)
 
-        self.manager = Manager()
+        self.manager = Manager(config_path)
         self.manager.load()
 
         self._build_menu()
