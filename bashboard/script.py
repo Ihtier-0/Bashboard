@@ -26,11 +26,12 @@ class Script(QObject):
     log_appended = Signal(str)
     state_changed = Signal()
 
-    def __init__(self, name: str, path: str, args: str = ""):
+    def __init__(self, name: str, path: str, args: str = "", cwd: str = ""):
         super().__init__()
         self.name = name
         self.path = path
         self.args = args
+        self.cwd = cwd
         self.base_dir: Optional[str] = None
         self.process: Optional[QProcess] = None
         self.log_lines: list[str] = []
@@ -50,6 +51,16 @@ class Script(QObject):
             return self.path
         return os.path.join(self.base_dir, self.path)
 
+    @property
+    def resolved_cwd(self) -> str:
+        """Working directory for the QProcess. Explicit cwd wins; empty falls
+        back to the script file's directory."""
+        if self.cwd:
+            if os.path.isabs(self.cwd) or not self.base_dir:
+                return self.cwd
+            return os.path.join(self.base_dir, self.cwd)
+        return os.path.dirname(self.resolved_path)
+
     def start(self) -> None:
         if self.is_running:
             return
@@ -59,6 +70,9 @@ class Script(QObject):
         proc = QProcess(self)
         proc.setProgram("/bin/bash")
         proc.setArguments([self.resolved_path, *shlex.split(self.args)])
+        cwd = self.resolved_cwd
+        if cwd:
+            proc.setWorkingDirectory(cwd)
         proc.setProcessChannelMode(QProcess.MergedChannels)
         proc.readyReadStandardOutput.connect(self._on_output)
         proc.finished.connect(self._on_finished)
@@ -129,11 +143,19 @@ class Script(QObject):
             self.state_changed.emit()
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "path": self.path, "args": self.args}
+        d = {"name": self.name, "path": self.path, "args": self.args}
+        if self.cwd:
+            d["cwd"] = self.cwd
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "Script":
-        return cls(data["name"], data["path"], data.get("args", ""))
+        return cls(
+            data["name"],
+            data["path"],
+            data.get("args", ""),
+            data.get("cwd", ""),
+        )
 
 
 def _readlink(path: str) -> Optional[str]:

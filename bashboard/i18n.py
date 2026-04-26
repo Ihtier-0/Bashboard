@@ -20,6 +20,10 @@ _TRANSLATIONS = {
         "Quit": "Выход",
         "Error": "Ошибка",
         "Specify name and path.": "Укажите название и путь к скрипту.",
+        "Specify a name.": "Укажите название.",
+        "Specify a file path or type the script content.": (
+            "Укажите путь к файлу или напечатайте содержимое скрипта."
+        ),
         "Script is running": "Скрипт запущен",
         "Stop the script before editing.": "Остановите скрипт перед редактированием.",
         "Delete": "Удалить",
@@ -54,6 +58,18 @@ _TRANSLATIONS = {
         "Browse…": "Обзор…",
         "e.g. Backup DB": "Например: Backup DB",
         "Select bash script": "Выберите bash-скрипт",
+        "Working dir:": "Рабочая папка:",
+        "(default: directory of the script)": "(по умолчанию: папка скрипта)",
+        "Select working directory": "Выберите рабочую папку",
+        "Content:": "Содержимое:",
+        "Open in external editor": "Открыть во внешнем редакторе",
+        "Unsaved changes": "Несохранённые изменения",
+        "Discard inline changes and open in external editor?": (
+            "Отбросить правки в окне и открыть во внешнем редакторе?"
+        ),
+        "Discard typed content and load the picked file?": (
+            "Отбросить набранное и загрузить выбранный файл?"
+        ),
     }
 }
 

@@ -1,3 +1,8 @@
+import os
+import re
+from pathlib import Path
+from typing import Optional
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QGuiApplication
 from PySide6.QtWidgets import (
@@ -170,15 +175,65 @@ class MainWindow(QMainWindow):
                 self.list_widget.setCurrentRow(i)
                 return
 
+    def _resolve_path(self, path: str) -> str:
+        if not path or os.path.isabs(path):
+            return path
+        return os.path.join(str(self.manager.config_path.parent), path)
+
+    def _auto_path(self, name: str) -> str:
+        """Pick a unique relative path under <config_dir>/scripts/ from the
+        script name. Returned path is relative to config_path.parent."""
+        scripts_dir = self.manager.config_path.parent / "scripts"
+        safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", name).strip("_") or "script"
+        if not safe.endswith(".sh"):
+            safe += ".sh"
+        candidate = safe
+        n = 1
+        while (scripts_dir / candidate).exists():
+            n += 1
+            candidate = f"{safe[:-3]}-{n}.sh"
+        return f"scripts/{candidate}"
+
+    def _write_content(self, path: str, content: Optional[str]) -> bool:
+        """Write inline editor content to the script file. Returns False if the
+        write failed (after showing an error). content=None means the user did
+        not touch the editor — leave the file untouched. Creates the file if
+        it does not exist and makes it executable."""
+        resolved = self._resolve_path(path)
+        p = Path(resolved)
+        creating = not p.exists()
+        if content is None and not creating:
+            return True
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content or "", encoding="utf-8")
+            if creating or not os.access(resolved, os.X_OK):
+                os.chmod(resolved, 0o755)
+        except OSError as e:
+            QMessageBox.warning(self, tr("Error"), str(e))
+            return False
+        return True
+
     def _add(self) -> None:
-        dlg = EditDialog(self)
+        dlg = EditDialog(self, base_dir=str(self.manager.config_path.parent))
         if dlg.exec() != EditDialog.Accepted:
             return
-        name, path, args = dlg.values()
-        if not name or not path:
-            QMessageBox.warning(self, tr("Error"), tr("Specify name and path."))
+        name, path, args, cwd, content = dlg.values()
+        if not name:
+            QMessageBox.warning(self, tr("Error"), tr("Specify a name."))
             return
-        script = Script(name, path, args)
+        if not path:
+            if not content:
+                QMessageBox.warning(
+                    self,
+                    tr("Error"),
+                    tr("Specify a file path or type the script content."),
+                )
+                return
+            path = self._auto_path(name)
+        if not self._write_content(path, content):
+            return
+        script = Script(name, path, args, cwd)
         self.manager.add(script)
         self._add_item(script)
 
@@ -206,16 +261,35 @@ class MainWindow(QMainWindow):
                 tr("Stop the script before editing."),
             )
             return
-        dlg = EditDialog(self, script.name, script.path, script.args)
+        dlg = EditDialog(
+            self,
+            script.name,
+            script.path,
+            script.args,
+            script.cwd,
+            base_dir=str(self.manager.config_path.parent),
+        )
         if dlg.exec() != EditDialog.Accepted:
             return
-        name, path, args = dlg.values()
-        if not name or not path:
-            QMessageBox.warning(self, tr("Error"), tr("Specify name and path."))
+        name, path, args, cwd, content = dlg.values()
+        if not name:
+            QMessageBox.warning(self, tr("Error"), tr("Specify a name."))
+            return
+        if not path:
+            if not content:
+                QMessageBox.warning(
+                    self,
+                    tr("Error"),
+                    tr("Specify a file path or type the script content."),
+                )
+                return
+            path = self._auto_path(name)
+        if not self._write_content(path, content):
             return
         script.name = name
         script.path = path
         script.args = args
+        script.cwd = cwd
         self.manager.save()
         widget.refresh()
         if self.log_panel.script is script:
