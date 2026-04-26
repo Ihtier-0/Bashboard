@@ -20,9 +20,10 @@ from .log_panel import LogPanel
 from .manager import Manager
 from .script import Script
 from .script_item import ScriptItem
-
+from .theme import SUPPORTED_THEMES, theme_manager
 
 LANGUAGE_NAMES = {"en": "English", "ru": "Русский"}
+THEME_LABELS = {"system": "System", "light": "Light", "dark": "Dark"}
 
 
 class MainWindow(QMainWindow):
@@ -100,22 +101,47 @@ class MainWindow(QMainWindow):
             self.language_menu.addAction(action)
             self.lang_actions[code] = action
 
+        self.theme_menu = self.settings_menu.addMenu("")
+        self.theme_group = QActionGroup(self)
+        self.theme_group.setExclusive(True)
+        self.theme_actions: dict[str, QAction] = {}
+        for code in SUPPORTED_THEMES:
+            action = QAction(self)
+            action.setCheckable(True)
+            action.setChecked(code == theme_manager.current)
+            action.triggered.connect(
+                lambda _checked=False, c=code: self._switch_theme(c)
+            )
+            self.theme_group.addAction(action)
+            self.theme_menu.addAction(action)
+            self.theme_actions[code] = action
+
     def _switch_language(self, code: str) -> None:
         cfg = settings_module.load()
         cfg["language"] = code
         settings_module.save(cfg)
         translator.set_language(code)
 
+    def _switch_theme(self, code: str) -> None:
+        cfg = settings_module.load()
+        cfg["theme"] = code
+        settings_module.save(cfg)
+        theme_manager.set_theme(code)
+
     def _retranslate(self) -> None:
         self.file_menu.setTitle(tr("File"))
         self.settings_menu.setTitle(tr("Settings"))
         self.language_menu.setTitle(tr("Language"))
+        self.theme_menu.setTitle(tr("Theme"))
         self.add_action.setText(tr("Add script…"))
         self.quit_action.setText(tr("Quit"))
         self.scripts_label.setText(f"<b>{tr('Scripts')}</b>")
         self.add_btn.setText(tr("+ Add"))
         for code, action in self.lang_actions.items():
             action.setChecked(code == translator.current)
+        for code, action in self.theme_actions.items():
+            action.setText(tr(THEME_LABELS[code]))
+            action.setChecked(code == theme_manager.current)
 
     def _add_item(self, script: Script) -> QListWidgetItem:
         item = QListWidgetItem(self.list_widget)

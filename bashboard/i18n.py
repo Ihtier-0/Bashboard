@@ -1,6 +1,5 @@
 from PySide6.QtCore import QObject, Signal
 
-
 SUPPORTED_LANGUAGES = ["en", "ru"]
 DEFAULT_LANGUAGE = "en"
 
@@ -13,6 +12,10 @@ _TRANSLATIONS = {
         "File": "Файл",
         "Settings": "Настройки",
         "Language": "Язык",
+        "Theme": "Тема",
+        "System": "Системная",
+        "Light": "Светлая",
+        "Dark": "Тёмная",
         "Add script…": "Добавить скрипт…",
         "Quit": "Выход",
         "Error": "Ошибка",
