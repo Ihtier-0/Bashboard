@@ -23,11 +23,17 @@ class LogPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
 
+        title_row = QHBoxLayout()
         self.title = QLabel()
         title_font = self.title.font()
         title_font.setBold(True)
         self.title.setFont(title_font)
-        layout.addWidget(self.title)
+        title_row.addWidget(self.title)
+        title_row.addStretch(1)
+        self.clear_btn = QPushButton()
+        self.clear_btn.clicked.connect(self._clear)
+        title_row.addWidget(self.clear_btn)
+        layout.addLayout(title_row)
 
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
@@ -91,6 +97,7 @@ class LogPanel(QWidget):
             tr("Send to stdin of the running script (Enter to send)")
         )
         self.send_btn.setText(tr("Send"))
+        self.clear_btn.setText(tr("Clear"))
 
     def _on_append(self, chunk: str) -> None:
         if chunk == CLEAR_TOKEN:
@@ -104,6 +111,11 @@ class LogPanel(QWidget):
         running = self.script is not None and self.script.is_running
         self.input.setEnabled(running)
         self.send_btn.setEnabled(running)
+        self.clear_btn.setEnabled(self.script is not None)
+
+    def _clear(self) -> None:
+        if self.script is not None:
+            self.script.clear_log()
 
     def _send(self) -> None:
         if self.script is None or not self.script.is_running:

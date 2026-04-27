@@ -1,6 +1,7 @@
 import os
 import platform
 import shlex
+from datetime import datetime
 from typing import Optional
 
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
@@ -36,6 +37,7 @@ class Script(QObject):
         self.process: Optional[QProcess] = None
         self.log_lines: list[str] = []
         self.waiting_input: bool = False
+        self.run_count: int = 0
 
         self._wait_timer = QTimer(self)
         self._wait_timer.setInterval(500)
@@ -64,8 +66,11 @@ class Script(QObject):
     def start(self) -> None:
         if self.is_running:
             return
-        self.log_lines.clear()
-        self.log_appended.emit(CLEAR_TOKEN)
+
+        self.run_count += 1
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        prefix = "\n" if self.log_lines else ""
+        self._append(f"{prefix}--- Run {self.run_count} · {ts} ---\n")
 
         proc = QProcess(self)
         proc.setProgram("/bin/bash")
@@ -91,6 +96,10 @@ class Script(QObject):
         if not self.process.waitForFinished(3000):
             self.process.kill()
             self.process.waitForFinished(1000)
+
+    def clear_log(self) -> None:
+        self.log_lines.clear()
+        self.log_appended.emit(CLEAR_TOKEN)
 
     def command(self) -> str:
         parts = ["bash", shlex.quote(self.resolved_path)]
