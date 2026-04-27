@@ -1,8 +1,23 @@
 [
   {
-    "name": "1. Run and exit",
-    "path": "scripts/run_and_exit.sh",
+    "name": "Hello",
+    "path": "scripts/hello.sh",
     "args": ""
+  },
+  {
+    "name": "New category",
+    "scripts": [
+      {
+        "name": "1. Run and exit",
+        "path": "scripts/run_and_exit.sh",
+        "args": ""
+      },
+      {
+        "name": "3. Background loop",
+        "path": "scripts/background.sh",
+        "args": ""
+      }
+    ]
   },
   {
     "name": "2. Interactive (stdin)",
@@ -10,8 +25,8 @@
     "args": ""
   },
   {
-    "name": "3. Background loop",
-    "path": "scripts/background.sh",
+    "name": "Date & uptime",
+    "path": "scripts/date.sh",
     "args": ""
   }
 ]
