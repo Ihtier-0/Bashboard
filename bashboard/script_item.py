@@ -1,4 +1,6 @@
-from PySide6.QtCore import Signal
+from datetime import datetime
+
+from PySide6.QtCore import QEvent, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -8,7 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from .i18n import translator, tr
-from .script import Script
+from .script import Script, format_bytes, format_duration
 
 
 class ScriptItem(QWidget):
@@ -28,6 +30,9 @@ class ScriptItem(QWidget):
 
         self.dot = QLabel("●")
         self.dot.setFixedWidth(16)
+        # Recompute the dot tooltip just-in-time so the elapsed time is
+        # accurate without a per-row tick timer.
+        self.dot.installEventFilter(self)
         layout.addWidget(self.dot)
 
         self.name_label = QLabel(script.name)
@@ -75,16 +80,51 @@ class ScriptItem(QWidget):
         if self.script.is_running:
             if self.script.waiting_input:
                 self.dot.setStyleSheet("color: #f39c12; font-size: 16px;")
-                self.dot.setToolTip(tr("Waiting for input on stdin"))
             else:
                 self.dot.setStyleSheet("color: #2ecc71; font-size: 16px;")
-                self.dot.setToolTip(tr("Running"))
             self.run_btn.setEnabled(False)
             self.stop_btn.setEnabled(True)
             self.edit_btn.setEnabled(False)
         else:
             self.dot.setStyleSheet("color: #888; font-size: 16px;")
-            self.dot.setToolTip(tr("Not running"))
             self.run_btn.setEnabled(True)
             self.stop_btn.setEnabled(False)
             self.edit_btn.setEnabled(True)
+
+        self.dot.setToolTip(self._tooltip())
+
+    def eventFilter(self, obj, event) -> bool:
+        if obj is self.dot and event.type() == QEvent.ToolTip:
+            self.dot.setToolTip(self._tooltip())
+        return super().eventFilter(obj, event)
+
+    def _tooltip(self) -> str:
+        s = self.script
+        if s.is_running:
+            head = (
+                tr("Waiting for input on stdin") if s.waiting_input else tr("Running")
+            )
+            if s.last_started_at is None:
+                return head
+            elapsed = (datetime.now() - s.last_started_at).total_seconds()
+            return tr("{head}\nstarted: {start} · {elapsed} · {size}").format(
+                head=head,
+                start=s.last_started_at.strftime("%H:%M:%S"),
+                elapsed=format_duration(elapsed),
+                size=format_bytes(s.bytes_received),
+            )
+        if s.last_started_at is None:
+            return tr("Not running")
+        duration = (
+            (s.last_finished_at - s.last_started_at).total_seconds()
+            if s.last_finished_at
+            else 0
+        )
+        return tr(
+            "Not running\nlast: {start} · {duration} · exit {code} · {size}"
+        ).format(
+            start=s.last_started_at.strftime("%H:%M:%S"),
+            duration=format_duration(duration),
+            code=s.last_exit_code if s.last_exit_code is not None else "?",
+            size=format_bytes(s.bytes_received),
+        )

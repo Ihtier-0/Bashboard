@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Optional
 
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -28,7 +29,7 @@ _MATCH_FG = QColor(Qt.black)
 
 from .ansi import AnsiParser
 from .i18n import translator, tr
-from .script import CLEAR_TOKEN, Script
+from .script import CLEAR_TOKEN, Script, format_bytes, format_duration
 
 
 class LogPanel(QWidget):
@@ -51,6 +52,14 @@ class LogPanel(QWidget):
         self.clear_btn.clicked.connect(self._clear)
         title_row.addWidget(self.clear_btn)
         layout.addLayout(title_row)
+
+        self.subtitle = QLabel()
+        self.subtitle.setStyleSheet("color: gray;")
+        layout.addWidget(self.subtitle)
+
+        self._tick_timer = QTimer(self)
+        self._tick_timer.setInterval(1000)
+        self._tick_timer.timeout.connect(self._refresh_stats)
 
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
@@ -164,6 +173,42 @@ class LogPanel(QWidget):
         self.input.setEnabled(running)
         self.send_btn.setEnabled(running)
         self.clear_btn.setEnabled(self.script is not None)
+        self._refresh_stats()
+
+    def _refresh_stats(self) -> None:
+        s = self.script
+        if s is None or s.last_started_at is None:
+            self.subtitle.setText("")
+            self._tick_timer.stop()
+            return
+        started = s.last_started_at.strftime("%H:%M:%S")
+        sz = format_bytes(s.bytes_received)
+        if s.is_running:
+            elapsed = (datetime.now() - s.last_started_at).total_seconds()
+            self.subtitle.setText(
+                tr("▶ started {start} · running {elapsed} · {size} output").format(
+                    start=started, elapsed=format_duration(elapsed), size=sz
+                )
+            )
+            if not self._tick_timer.isActive():
+                self._tick_timer.start()
+        else:
+            self._tick_timer.stop()
+            duration = (
+                (s.last_finished_at - s.last_started_at).total_seconds()
+                if s.last_finished_at
+                else 0
+            )
+            sym = "✓" if s.last_exit_code == 0 else "✗"
+            self.subtitle.setText(
+                tr("{sym} last: {start} · {duration} · exit {code} · {size}").format(
+                    sym=sym,
+                    start=started,
+                    duration=format_duration(duration),
+                    code=s.last_exit_code if s.last_exit_code is not None else "?",
+                    size=sz,
+                )
+            )
 
     def _clear(self) -> None:
         if self.script is not None:

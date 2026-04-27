@@ -10,6 +10,26 @@ LOG_LIMIT = 5000
 
 CLEAR_TOKEN = "\x00CLEAR\x00"
 
+
+def format_duration(seconds: float) -> str:
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m{s % 60:02d}s"
+    return f"{s // 3600}h{(s % 3600) // 60:02d}m"
+
+
+def format_bytes(n: int) -> str:
+    if n < 1024:
+        return f"{n} B"
+    if n < 1024 * 1024:
+        return f"{n / 1024:.1f} KB"
+    if n < 1024 * 1024 * 1024:
+        return f"{n / (1024 * 1024):.1f} MB"
+    return f"{n / (1024 * 1024 * 1024):.1f} GB"
+
+
 # /proc/<pid>/syscall reports the syscall number as decimal (kernel format
 # "%ld 0x%lx ..."). The read() syscall number is arch-specific.
 _READ_SYSCALL_NR = {
@@ -37,7 +57,12 @@ class Script(QObject):
         self.process: Optional[QProcess] = None
         self.log_lines: list[str] = []
         self.waiting_input: bool = False
+        # Session-only stats (not persisted to scripts.json).
         self.run_count: int = 0
+        self.last_started_at: Optional[datetime] = None
+        self.last_finished_at: Optional[datetime] = None
+        self.last_exit_code: Optional[int] = None
+        self.bytes_received: int = 0
 
         self._wait_timer = QTimer(self)
         self._wait_timer.setInterval(500)
@@ -68,7 +93,11 @@ class Script(QObject):
             return
 
         self.run_count += 1
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.last_started_at = datetime.now()
+        self.last_finished_at = None
+        self.last_exit_code = None
+        self.bytes_received = 0
+        ts = self.last_started_at.strftime("%Y-%m-%d %H:%M:%S")
         prefix = "\n" if self.log_lines else ""
         self._append(f"{prefix}--- Run {self.run_count} · {ts} ---\n")
 
@@ -115,10 +144,9 @@ class Script(QObject):
         self.process.write(text.encode("utf-8"))
 
     def _on_output(self) -> None:
-        data = bytes(self.process.readAllStandardOutput()).decode(
-            "utf-8", errors="replace"
-        )
-        self._append(data)
+        raw = bytes(self.process.readAllStandardOutput())
+        self.bytes_received += len(raw)
+        self._append(raw.decode("utf-8", errors="replace"))
 
     def _append(self, data: str) -> None:
         for line in data.splitlines(keepends=True):
@@ -130,6 +158,8 @@ class Script(QObject):
     def _on_finished(self, code: int, _status) -> None:
         self._wait_timer.stop()
         self.waiting_input = False
+        self.last_finished_at = datetime.now()
+        self.last_exit_code = code
         self._append(f"\n[exit code: {code}]\n")
         self.state_changed.emit()
 

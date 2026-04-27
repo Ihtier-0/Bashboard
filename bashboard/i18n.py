@@ -47,6 +47,18 @@ _TRANSLATIONS = {
         "Send": "Отправить",
         "Clear": "Очистить",
         "Find in log…": "Найти в логе…",
+        "▶ started {start} · running {elapsed} · {size} output": (
+            "▶ запущен {start} · работает {elapsed} · {size} вывода"
+        ),
+        "{sym} last: {start} · {duration} · exit {code} · {size}": (
+            "{sym} последний: {start} · {duration} · exit {code} · {size}"
+        ),
+        "{head}\nstarted: {start} · {elapsed} · {size}": (
+            "{head}\nзапущен: {start} · {elapsed} · {size}"
+        ),
+        "Not running\nlast: {start} · {duration} · exit {code} · {size}": (
+            "Не запущен\nпоследний: {start} · {duration} · exit {code} · {size}"
+        ),
         "Previous match (Shift+Enter)": "Предыдущее совпадение (Shift+Enter)",
         "Next match (Enter)": "Следующее совпадение (Enter)",
         "Close (Esc)": "Закрыть (Esc)",
