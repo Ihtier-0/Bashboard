@@ -1,15 +1,30 @@
 from typing import Optional
 
-from PySide6.QtGui import QFont, QTextCursor
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QKeySequence,
+    QShortcut,
+    QTextCharFormat,
+    QTextCursor,
+    QTextDocument,
+)
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QTextEdit,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
+
+_MATCH_BG = QColor("#ffea7f")
+_CURRENT_MATCH_BG = QColor("#ff8f00")
+_MATCH_FG = QColor(Qt.black)
 
 from .ansi import AnsiParser
 from .i18n import translator, tr
@@ -44,6 +59,31 @@ class LogPanel(QWidget):
         mono.setStyleHint(QFont.TypeWriter)
         self.log_view.setFont(mono)
         layout.addWidget(self.log_view, 1)
+
+        self.search_bar = QWidget()
+        sl = QHBoxLayout(self.search_bar)
+        sl.setContentsMargins(0, 4, 0, 0)
+        self.search_input = QLineEdit()
+        self.search_input.installEventFilter(self)
+        self.search_input.textChanged.connect(self._on_search_text_changed)
+        sl.addWidget(self.search_input, 1)
+        self.search_prev_btn = QToolButton()
+        self.search_prev_btn.setText("▲")
+        self.search_prev_btn.clicked.connect(self._search_prev)
+        sl.addWidget(self.search_prev_btn)
+        self.search_next_btn = QToolButton()
+        self.search_next_btn.setText("▼")
+        self.search_next_btn.clicked.connect(self._search_next)
+        sl.addWidget(self.search_next_btn)
+        self.search_close_btn = QToolButton()
+        self.search_close_btn.setText("✕")
+        self.search_close_btn.clicked.connect(self._hide_search)
+        sl.addWidget(self.search_close_btn)
+        self.search_bar.setVisible(False)
+        layout.addWidget(self.search_bar)
+
+        self.find_shortcut = QShortcut(QKeySequence.Find, self)
+        self.find_shortcut.activated.connect(self._show_search)
 
         input_row = QHBoxLayout()
         self.input = QLineEdit()
@@ -100,6 +140,10 @@ class LogPanel(QWidget):
         )
         self.send_btn.setText(tr("Send"))
         self.clear_btn.setText(tr("Clear"))
+        self.search_input.setPlaceholderText(tr("Find in log…"))
+        self.search_prev_btn.setToolTip(tr("Previous match (Shift+Enter)"))
+        self.search_next_btn.setToolTip(tr("Next match (Enter)"))
+        self.search_close_btn.setToolTip(tr("Close (Esc)"))
 
     def _on_append(self, chunk: str) -> None:
         if chunk == CLEAR_TOKEN:
@@ -134,3 +178,91 @@ class LogPanel(QWidget):
         self.log_view.insertPlainText(f"> {text}\n")
         self.log_view.moveCursor(QTextCursor.End)
         self.input.clear()
+
+    # ----- search -----
+
+    def _show_search(self) -> None:
+        self.search_bar.setVisible(True)
+        self.search_input.setFocus()
+        self.search_input.selectAll()
+        self._refresh_highlights()
+
+    def _hide_search(self) -> None:
+        self.search_bar.setVisible(False)
+        self.log_view.setExtraSelections([])
+        self.log_view.setFocus()
+
+    def _on_search_text_changed(self, text: str) -> None:
+        if not text:
+            self.log_view.setExtraSelections([])
+            return
+        # Move to the first match from the top.
+        cursor = self.log_view.textCursor()
+        cursor.movePosition(QTextCursor.Start)
+        self.log_view.setTextCursor(cursor)
+        self.log_view.find(text)
+        self._refresh_highlights()
+
+    def _search_next(self) -> None:
+        text = self.search_input.text()
+        if not text:
+            return
+        if not self.log_view.find(text):
+            cursor = self.log_view.textCursor()
+            cursor.movePosition(QTextCursor.Start)
+            self.log_view.setTextCursor(cursor)
+            self.log_view.find(text)
+        self._refresh_highlights()
+
+    def _search_prev(self) -> None:
+        text = self.search_input.text()
+        if not text:
+            return
+        if not self.log_view.find(text, QTextDocument.FindBackward):
+            cursor = self.log_view.textCursor()
+            cursor.movePosition(QTextCursor.End)
+            self.log_view.setTextCursor(cursor)
+            self.log_view.find(text, QTextDocument.FindBackward)
+        self._refresh_highlights()
+
+    def _refresh_highlights(self) -> None:
+        text = self.search_input.text() if self.search_bar.isVisible() else ""
+        if not text:
+            self.log_view.setExtraSelections([])
+            return
+        cur = self.log_view.textCursor()
+        cur_start, cur_end = cur.selectionStart(), cur.selectionEnd()
+
+        selections = []
+        doc = self.log_view.document()
+        finder = QTextCursor(doc)
+        while True:
+            finder = doc.find(text, finder)
+            if finder.isNull():
+                break
+            sel = QTextEdit.ExtraSelection()
+            sel.cursor = QTextCursor(finder)
+            fmt = QTextCharFormat()
+            is_current = (
+                finder.selectionStart() == cur_start
+                and finder.selectionEnd() == cur_end
+            )
+            fmt.setBackground(_CURRENT_MATCH_BG if is_current else _MATCH_BG)
+            fmt.setForeground(_MATCH_FG)
+            sel.format = fmt
+            selections.append(sel)
+        self.log_view.setExtraSelections(selections)
+
+    def eventFilter(self, obj, event) -> bool:
+        if obj is self.search_input and event.type() == QEvent.KeyPress:
+            key = event.key()
+            if key == Qt.Key_Escape:
+                self._hide_search()
+                return True
+            if key in (Qt.Key_Return, Qt.Key_Enter):
+                if event.modifiers() & Qt.ShiftModifier:
+                    self._search_prev()
+                else:
+                    self._search_next()
+                return True
+        return super().eventFilter(obj, event)

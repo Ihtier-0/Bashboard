@@ -46,6 +46,10 @@ _TRANSLATIONS = {
         ),
         "Send": "Отправить",
         "Clear": "Очистить",
+        "Find in log…": "Найти в логе…",
+        "Previous match (Shift+Enter)": "Предыдущее совпадение (Shift+Enter)",
+        "Next match (Enter)": "Следующее совпадение (Enter)",
+        "Close (Esc)": "Закрыть (Esc)",
         # Script item
         "Run": "Запустить",
         "Stop": "Остановить",
