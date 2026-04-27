@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .ansi import AnsiParser
 from .i18n import translator, tr
 from .script import CLEAR_TOKEN, Script
 
@@ -19,6 +20,7 @@ class LogPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.script: Optional[Script] = None
+        self._ansi = AnsiParser()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -67,6 +69,7 @@ class LogPanel(QWidget):
 
         self.script = script
         self.log_view.clear()
+        self._ansi.reset()
 
         self._refresh_title()
 
@@ -75,8 +78,7 @@ class LogPanel(QWidget):
             return
 
         if script.log_lines:
-            self.log_view.setPlainText("".join(script.log_lines))
-            self.log_view.moveCursor(QTextCursor.End)
+            self._append_with_ansi("".join(script.log_lines))
 
         script.log_appended.connect(self._on_append)
         script.state_changed.connect(self._update_input_state)
@@ -102,10 +104,16 @@ class LogPanel(QWidget):
     def _on_append(self, chunk: str) -> None:
         if chunk == CLEAR_TOKEN:
             self.log_view.clear()
+            self._ansi.reset()
             return
-        self.log_view.moveCursor(QTextCursor.End)
-        self.log_view.insertPlainText(chunk)
-        self.log_view.moveCursor(QTextCursor.End)
+        self._append_with_ansi(chunk)
+
+    def _append_with_ansi(self, chunk: str) -> None:
+        cursor = self.log_view.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        for text, fmt in self._ansi.parse(chunk):
+            cursor.insertText(text, fmt)
+        self.log_view.setTextCursor(cursor)
 
     def _update_input_state(self) -> None:
         running = self.script is not None and self.script.is_running
