@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Variant 2: Script list with status dots.
+       Three rounded "rows" stacked, each with a status dot colored exactly
+       like the app's runtime states (gray idle, green running, orange waiting
+       for stdin). Directly mirrors what Bashboard's UI shows; "the icon is
+       the app". -->
+  <rect x="8" y="8" width="240" height="240" rx="40" ry="40" fill="#2b2d31"/>
+
+  <!-- Row 1: idle (gray dot) -->
+  <rect x="32" y="56" width="192" height="40" rx="12" ry="12" fill="#3f4148"/>
+  <circle cx="56" cy="76" r="10" fill="#888"/>
+  <rect x="80" y="68" width="120" height="16" rx="4" ry="4" fill="#5a5d65"/>
+
+  <!-- Row 2: running (green dot) -->
+  <rect x="32" y="108" width="192" height="40" rx="12" ry="12" fill="#3f4148"/>
+  <circle cx="56" cy="128" r="10" fill="#2ecc71"/>
+  <rect x="80" y="120" width="120" height="16" rx="4" ry="4" fill="#5a5d65"/>
+
+  <!-- Row 3: waiting for stdin (orange dot) -->
+  <rect x="32" y="160" width="192" height="40" rx="12" ry="12" fill="#3f4148"/>
+  <circle cx="56" cy="180" r="10" fill="#f39c12"/>
+  <rect x="80" y="172" width="120" height="16" rx="4" ry="4" fill="#5a5d65"/>
+</svg>
