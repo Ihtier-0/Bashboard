@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Bashboard
+GenericName=Bash Script Runner
+Comment=Desktop GUI for running bash scripts
+Exec=bashboard
+Icon=bashboard
+Terminal=false
+Categories=Utility;Development;
+StartupWMClass=Bashboard
+Keywords=bash;script;shell;

@@ -12,7 +12,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # hatch-vcs needs full history for the version tag
 
+      # ── Source archives ──────────────────────────────────────────────────
       - name: Build source archives
         run: |
           git archive --format=tar.gz \
@@ -24,12 +27,71 @@ jobs:
             -o bashboard-${{ github.ref_name }}.zip \
             HEAD
 
+      # ── pip wheel ────────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel and sdist
+        run: |
+          pip install build hatch-vcs
+          python -m build
+
+      # ── deb package ──────────────────────────────────────────────────────
+      - name: Build deb package
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}   # strip leading "v"
+          PKG=bashboard_${VERSION}_all
+
+          # Directory layout
+          mkdir -p ${PKG}/DEBIAN
+          mkdir -p ${PKG}/usr/bin
+          mkdir -p ${PKG}/usr/lib/bashboard
+          mkdir -p ${PKG}/usr/share/applications
+          mkdir -p ${PKG}/usr/share/icons/hicolor/scalable/apps
+
+          # App files
+          cp -r bashboard icons main.py ${PKG}/usr/lib/bashboard/
+
+          # Launcher
+          cat > ${PKG}/usr/bin/bashboard <<'SH'
+          #!/bin/sh
+          exec python3 /usr/lib/bashboard/main.py "$@"
+          SH
+          chmod 755 ${PKG}/usr/bin/bashboard
+
+          # Desktop entry and icon
+          sed "s|@PYTHON@|python3|g; s|@MAIN@|/usr/lib/bashboard/main.py|g" \
+            bashboard.desktop.in > ${PKG}/usr/share/applications/bashboard.desktop
+          cp icons/bashboard.svg \
+            ${PKG}/usr/share/icons/hicolor/scalable/apps/bashboard.svg
+
+          # Control file
+          cat > ${PKG}/DEBIAN/control <<EOF
+          Package: bashboard
+          Version: ${VERSION}
+          Architecture: all
+          Maintainer: Ikhtierzhon Rakhimov <ihtier_@outlook.com>
+          Depends: python3 (>= 3.10), python3-pyside6, python3-pygments
+          Description: Desktop GUI for running bash scripts on Linux
+           Run, monitor, and interact with bash scripts via a PySide6 GUI.
+          EOF
+
+          dpkg-deb --build --root-owner-group ${PKG}
+
+      # ── GitHub Release ───────────────────────────────────────────────────
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create ${{ github.ref_name }} \
-            --title "${{ github.ref_name }}" \
+          VERSION=${{ github.ref_name }}
+          gh release create ${VERSION} \
+            --title "${VERSION}" \
             --generate-notes \
-            bashboard-${{ github.ref_name }}.tar.gz \
-            bashboard-${{ github.ref_name }}.zip
+            bashboard-${VERSION}.tar.gz \
+            bashboard-${VERSION}.zip \
+            dist/*.whl \
+            dist/*.tar.gz \
+            bashboard_${VERSION#v}_all.deb

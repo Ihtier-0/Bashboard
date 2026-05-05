@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bashboard"
+dynamic = ["version"]
+description = "Desktop GUI for running bash scripts on Linux"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.6",
+    "pygments>=2.10",
+]
+
+[project.urls]
+Repository = "https://github.com/Ihtier-0/Bashboard"
+
+[project.gui-scripts]
+bashboard = "bashboard.__main__:main"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["bashboard"]
+artifacts = ["bashboard/icons"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"icons/bashboard.svg" = "share/icons/hicolor/scalable/apps/bashboard.svg"
+"bashboard.desktop" = "share/applications/bashboard.desktop"
