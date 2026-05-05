@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build source archives
+        run: |
+          git archive --format=tar.gz \
+            --prefix=bashboard-${{ github.ref_name }}/ \
+            -o bashboard-${{ github.ref_name }}.tar.gz \
+            HEAD
+          git archive --format=zip \
+            --prefix=bashboard-${{ github.ref_name }}/ \
+            -o bashboard-${{ github.ref_name }}.zip \
+            HEAD
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            bashboard-${{ github.ref_name }}.tar.gz \
+            bashboard-${{ github.ref_name }}.zip
