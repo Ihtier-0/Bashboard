@@ -219,9 +219,11 @@ class LogPanel(QWidget):
             return
         text = self.input.text()
         self.script.send_input(text)
-        self.log_view.moveCursor(QTextCursor.End)
-        self.log_view.insertPlainText(f"> {text}\n")
-        self.log_view.moveCursor(QTextCursor.End)
+        cursor = self.log_view.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertText(f"> {text}\n")
+        self.log_view.setTextCursor(cursor)
+        self.log_view.ensureCursorVisible()
         self.input.clear()
 
     # ----- search -----

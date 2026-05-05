@@ -122,9 +122,11 @@ class Script(QObject):
         if not self.is_running:
             return
         self.process.terminate()
-        if not self.process.waitForFinished(3000):
+        QTimer.singleShot(3000, self._kill_if_running)
+
+    def _kill_if_running(self) -> None:
+        if self.is_running:
             self.process.kill()
-            self.process.waitForFinished(1000)
 
     def clear_log(self) -> None:
         self.log_lines.clear()

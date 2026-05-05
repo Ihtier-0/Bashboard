@@ -51,12 +51,17 @@ def _xterm_256(idx: int) -> QColor:
     return QColor(gray, gray, gray)
 
 
+_PARTIAL_RE = re.compile(r"\x1b(\[[\d;]*)?$")
+
+
 class AnsiParser:
     def __init__(self):
         self._fmt = QTextCharFormat()
+        self._buf = ""
 
     def reset(self) -> None:
         self._fmt = QTextCharFormat()
+        self._buf = ""
 
     def _apply_codes(self, codes: list[int]) -> None:
         i = 0
@@ -107,6 +112,8 @@ class AnsiParser:
     def parse(self, text: str) -> Iterator[tuple[str, QTextCharFormat]]:
         """Yield (chunk, format) pairs. Non-SGR escapes (cursor movement,
         screen clear, etc.) are dropped silently."""
+        text = self._buf + text
+        self._buf = ""
         pos = 0
         for m in _SGR_RE.finditer(text):
             if m.start() > pos:
@@ -116,5 +123,10 @@ class AnsiParser:
                 codes = [int(x) for x in params.split(";") if x] or [0]
                 self._apply_codes(codes)
             pos = m.end()
-        if pos < len(text):
-            yield text[pos:], QTextCharFormat(self._fmt)
+        tail = text[pos:]
+        m = _PARTIAL_RE.search(tail)
+        if m:
+            self._buf = tail[m.start():]
+            tail = tail[: m.start()]
+        if tail:
+            yield tail, QTextCharFormat(self._fmt)
